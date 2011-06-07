@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/assignment/db" VERSION="20070919" COMMENT="XMLDB file for Moodle mod/assignment"
+<XMLDB PATH="mod/assignment/db" VERSION="20080715" COMMENT="XMLDB file for Moodle mod/assignment"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
@@ -19,21 +19,24 @@
         <FIELD NAME="var2" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="var1" NEXT="var3"/>
         <FIELD NAME="var3" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="var2" NEXT="var4"/>
         <FIELD NAME="var4" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="var3" NEXT="var5"/>
-        <FIELD NAME="var5" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="var4" NEXT="maxbytes"/>
-        <FIELD NAME="maxbytes" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="100000" SEQUENCE="false" ENUM="false" PREVIOUS="var5" NEXT="timedue"/>
+        <FIELD NAME="var5" TYPE="int" LENGTH="10" NOTNULL="false" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="var4" NEXT="data1"/>
+        <FIELD NAME="data1" TYPE="text" LENGTH="small" NOTNULL="false" SEQUENCE="false" ENUM="false" PREVIOUS="var5" NEXT="maxbytes"/>
+        <FIELD NAME="maxbytes" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="100000" SEQUENCE="false" ENUM="false" PREVIOUS="data1" NEXT="timedue"/>
         <FIELD NAME="timedue" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="maxbytes" NEXT="timeavailable"/>
         <FIELD NAME="timeavailable" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="timedue" NEXT="grade"/>
-        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="timeavailable" NEXT="timemodified"/>
-        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="grade"/>
+        <FIELD NAME="grade" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="false" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="timeavailable" NEXT="rubricid"/>
+        <FIELD NAME="rubricid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="grade" NEXT="timemodified"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="rubricid"/>
       </FIELDS>
       <KEYS>
-        <KEY NAME="primary" TYPE="primary" FIELDS="id" />
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" NEXT="rubric_identifier"/>
+        <KEY NAME="rubric_identifier" TYPE="foreign" FIELDS="rubricid" REFTABLE="rubric" REFFIELDS="id" PREVIOUS="primary"/>
       </KEYS>
       <INDEXES>
         <INDEX NAME="course" UNIQUE="false" FIELDS="course"/>
       </INDEXES>
     </TABLE>
-    <TABLE NAME="assignment_submissions" COMMENT="Info about submitted assignments" PREVIOUS="assignment">
+    <TABLE NAME="assignment_submissions" COMMENT="Info about submitted assignments" PREVIOUS="assignment" NEXT="assignment_submission_specs">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" ENUM="false" NEXT="assignment"/>
         <FIELD NAME="assignment" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="id" NEXT="userid"/>
@@ -59,6 +62,50 @@
         <INDEX NAME="mailed" UNIQUE="false" FIELDS="mailed" PREVIOUS="userid" NEXT="timemarked"/>
         <INDEX NAME="timemarked" UNIQUE="false" FIELDS="timemarked" PREVIOUS="mailed"/>
       </INDEXES>
+    </TABLE>
+    <TABLE NAME="assignment_submission_specs" COMMENT="Contains submission grade/comments for rubric; references &quot;rubric_specs&quot;; ordering is recursive" PREVIOUS="assignment_submissions" NEXT="rubric">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" ENUM="false" NEXT="submissionid"/>
+        <FIELD NAME="submissionid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="id" NEXT="rubricspecid"/>
+        <FIELD NAME="rubricspecid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="submissionid" NEXT="value"/>
+        <FIELD NAME="value" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="rubricspecid" NEXT="description"/>
+        <FIELD NAME="description" TYPE="text" LENGTH="small" NOTNULL="true" SEQUENCE="false" ENUM="false" PREVIOUS="value"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" NEXT="submission_identifier"/>
+        <KEY NAME="submission_identifier" TYPE="foreign" FIELDS="submissionid" REFTABLE="assignment_submissions" REFFIELDS="id" PREVIOUS="primary" NEXT="rubric_specification_identifier"/>
+        <KEY NAME="rubric_specification_identifier" TYPE="foreign" FIELDS="rubricspecid" REFTABLE="rubric_specs" REFFIELDS="id" PREVIOUS="submission_identifier"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="assignment_rubric" COMMENT="Holds rubric header information." PREVIOUS="assignment_submission_specs" NEXT="rubric_specs">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" ENUM="false" NEXT="name"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" ENUM="false" PREVIOUS="id" NEXT="creatorid"/>
+        <FIELD NAME="creatorid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="name" NEXT="courseid"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="creatorid" NEXT="points"/>
+        <FIELD NAME="points" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="courseid" NEXT="timemodified"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="points"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" NEXT="creator_identifier"/>
+        <KEY NAME="creator_identifier" TYPE="foreign" FIELDS="creatorid" REFTABLE="user" REFFIELDS="id" PREVIOUS="primary" NEXT="course_identifier"/>
+        <KEY NAME="course_identifier" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id" PREVIOUS="creator_identifier"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="assignment_rubric_specs" COMMENT="Contains submission placeholders for rubric -- ordering is recursive" PREVIOUS="rubric">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true" ENUM="false" NEXT="rubricid"/>
+        <FIELD NAME="rubricid" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="id" NEXT="treeorder"/>
+        <FIELD NAME="treeorder" TYPE="int" LENGTH="5" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="rubricid" NEXT="name"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" ENUM="false" PREVIOUS="treeorder" NEXT="notes"/>
+        <FIELD NAME="notes" TYPE="text" LENGTH="small" NOTNULL="false" SEQUENCE="false" ENUM="false" PREVIOUS="name" NEXT="points"/>
+        <FIELD NAME="points" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" DEFAULT="0" SEQUENCE="false" ENUM="false" PREVIOUS="notes" NEXT="parent"/>
+        <FIELD NAME="parent" TYPE="int" LENGTH="5" NOTNULL="true" UNSIGNED="true" SEQUENCE="false" ENUM="false" PREVIOUS="points"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id" NEXT="rubric_identifier"/>
+        <KEY NAME="rubric_identifier" TYPE="foreign" FIELDS="rubricid" REFTABLE="rubric" REFFIELDS="id" PREVIOUS="primary"/>
+      </KEYS>
     </TABLE>
   </TABLES>
   <STATEMENTS>

@@ -1,4 +1,4 @@
-<?php // $Id$
+<?php // $Id: assignment.class.php,v 1.32.2.14 2008/05/28 02:05:25 jerome Exp $
 require_once($CFG->libdir.'/formslib.php');
 
 define('ASSIGNMENT_STATUS_SUBMITTED', 'submitted'); // student thinks it is finished
@@ -32,6 +32,7 @@ class assignment_upload extends assignment_base {
             print_simple_box_end();
         } else {
             $this->view_intro();
+            $this->rubric->view();
         }
 
         $this->view_dates();
@@ -247,11 +248,11 @@ class assignment_upload extends assignment_base {
         $offset       = optional_param('offset', 0, PARAM_INT);
         $forcerefresh = optional_param('forcerefresh', 0, PARAM_BOOL);
 
-        $output = get_string('responsefiles', 'assignment').': ';
-
-        $output .= '<form enctype="multipart/form-data" method="post" '.
+        $output = '<form enctype="multipart/form-data" method="post" '.
              "action=\"$CFG->wwwroot/mod/assignment/upload.php\">";
         $output .= '<div>';
+        $output .= '<input type="submit" name="save" value="';
+        $output .= get_string('uploadresponsefile','assignment').'" />';
         $output .= '<input type="hidden" name="id" value="'.$this->cm->id.'" />';
         $output .= '<input type="hidden" name="action" value="uploadresponse" />';
         $output .= '<input type="hidden" name="mode" value="'.$mode.'" />';
@@ -259,9 +260,7 @@ class assignment_upload extends assignment_base {
         $output .= '<input type="hidden" name="userid" value="'.$submission->userid.'" />';
         require_once($CFG->libdir.'/uploadlib.php');
         $output .= upload_print_form_fragment(1,array('newfile'),null,false,null,0,0,true);
-        $output .= '<input type="submit" name="save" value="'.get_string('uploadthisfile').'" />';
-        $output .= '</div>';
-        $output .= '</form>';
+        $output .= '</div></form>';
 
         if ($forcerefresh) {
             $output .= $this->update_main_listing($submission);
@@ -599,7 +598,9 @@ class assignment_upload extends assignment_base {
                         'view.php?a='.$this->assignment->id, $this->assignment->id, $this->cm->id);
                 $submission = $this->get_submission($USER->id);
                 $this->update_grade($submission);
-
+                if (!$this->drafts_tracked()) {
+                    $this->email_teachers($submission);
+                }
             } else {
                 $new_filename = $um->get_new_filename();
                 $this->view_header(get_string('upload'));
@@ -941,9 +942,9 @@ class assignment_upload extends assignment_base {
             return false;
         }
 
-		if ($this->is_finalized($submission)) {
-		    return false;
-		}
+        if ($this->is_finalized($submission)) {
+            return false;
+        }
 
         if (has_capability('mod/assignment:grade', $this->context)) {
             return true;

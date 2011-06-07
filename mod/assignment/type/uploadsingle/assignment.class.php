@@ -1,4 +1,4 @@
-<?php // $Id$
+<?php // $Id: assignment.class.php,v 1.33.2.5 2008/04/08 03:02:49 scyrma Exp $
 
 /**
  * Extend the base assignment class for assignments where you upload a single file
@@ -51,6 +51,8 @@ class assignment_uploadsingle extends assignment_base {
         $this->view_header();
 
         $this->view_intro();
+
+        $this->rubric->view();
 
         $this->view_dates();
 

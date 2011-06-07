@@ -1,4 +1,4 @@
-<?php  // $Id$
+<?php  // $Id: file.php,v 1.6 2006/08/31 08:51:09 toyomoyo Exp $
 
     require("../../../../config.php");
     require("../../lib.php");

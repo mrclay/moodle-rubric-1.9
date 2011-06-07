@@ -1,4 +1,4 @@
-<?php  // $Id$
+<?php  // $Id: submissions.php,v 1.43 2006/08/28 08:42:30 toyomoyo Exp $
 
     require_once("../../config.php");
     require_once("lib.php");

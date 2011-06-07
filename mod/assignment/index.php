@@ -1,4 +1,4 @@
-<?php // $Id$
+<?php // $Id: index.php,v 1.35.2.5 2008/03/11 14:24:12 thepurpleblob Exp $
 
     require_once("../../config.php");
     require_once("lib.php");
@@ -22,12 +22,55 @@
     $strduedate = get_string("duedate", "assignment");
     $strsubmitted = get_string("submitted", "assignment");
     $strgrade = get_string("grade");
+    $strrubric = get_string("rubric", "assignment");
+    $strviewrubrics = get_string("viewrubrics", "assignment");
+    $strpoints = get_string("points", "assignment");
+
+    $context = get_context_instance(CONTEXT_COURSE,$id);
+    $types = assignment_types();
+
+    $allowhidden = has_capability('moodle/course:viewhiddensections', $context);
+    $allowgrader = has_capability('mod/assignment:grade', $context);
+
+    /* Builds New assignment selectbox */
+    $add_new_assignment_form = '';
+    if($sections = get_all_sections($course->id)){ // no sections
+
+        $options_week = '';
+        foreach($sections as $section){
+            if($allowhidden or $section->visible){
+                $week = $section->section;
+                $text = "Week $week";
+                if($week == 0) $text = 'Fixed';
+                $options_week .= "<option value=\"$week\">$text</option>\n";
+            }
+        }
+
+        $options_type = ""; 
+        while(list($value,$text) = each($types)){
+            $options_type .= "<option value=\"$value\">$text</option>\n";
+        }
+
+        $add_new_assignment_form = 
+            "<br /><center>".
+            "<form action=\"{$CFG->wwwroot}/course/mod.php\">".
+            "<select name=\"section\">\n$options_week</select>".
+            "<select name=\"type\">\n$options_type</select>".
+            '<input type="hidden" name="id" value="'.$course->id.'" />'.
+            '<input type="hidden" name="sesskey" vSubmittedalue="'.sesskey ().'" />'.
+            '<input type="hidden" name="add" value="assignment" />'.
+            '<input type="submit" value="New Assignment" style="margin-left:20px" />'.
+            "</form></center>";
+    }
 
     $navlinks = array();
     $navlinks[] = array('name' => $strassignments, 'link' => '', 'type' => 'activity');
     $navigation = build_navigation($navlinks);
 
-    print_header_simple($strassignments, "", $navigation, "", "", true, "", navmenu($course));
+    print_header_simple($strassignments, "", $navigation, "", "", true, 
+        ($allowgrader
+            ? "<div class=\"breadcrumb\"><a href=\"{$CFG->wwwroot}/mod/assignment/rubric/index.php?id={$course->id}\">$strviewrubrics</a></div>"
+            : ""), navmenu($course));
 
     if (!$cms = get_coursemodules_in_course('assignment', $course->id, 'm.assignmenttype, m.timedue')) {
         notice(get_string('noassignments', 'assignment'), "../../course/view.php?id=$course->id");
@@ -48,8 +91,6 @@
     }
 
     $currentsection = "";
-
-    $types = assignment_types();
 
     $modinfo = get_fast_modinfo($course);
     foreach ($modinfo->instances['assignment'] as $cm) {
@@ -97,11 +138,19 @@
         $type = $types[$cm->assignmenttype];
 
         $due = $cm->timedue ? userdate($cm->timedue) : '-';
+        $points = $assignmentinstance->assignment->grade;
+        $points = $points < 0 ? '-' : $points;
 
         if ($course->format == "weeks" or $course->format == "topics") {
-            $table->data[] = array ($printsection, $link, $type, $due, $submitted, $grade);
+            if ($allowgrader && $assignmentinstance->assignment->rubricid) {
+                $rubriclink = "$points (<a href=\"rubric/index.php?id=$id&rubric={$assignmentinstance->rubric->id}\">".
+                              "{$assignmentinstance->rubric->name}</a>)";
+                $table->data[] = array ($printsection, $link, $type, $due, $submitted, "$grade / $rubriclink");
+            } else {
+                $table->data[] = array ($printsection, $link, $type, $due, $submitted, "$grade / $points");
+            }
         } else {
-            $table->data[] = array ($link, $type, $due, $submitted, $grade);
+            $table->data[] = array ($link, $type, $due, $submitted, "$grade / $points");
         }
     }
 
@@ -109,5 +158,8 @@
 
     print_table($table);
 
+    if ($allowgrader) echo "$add_new_assignment_form";
+
     print_footer($course);
+
 ?>

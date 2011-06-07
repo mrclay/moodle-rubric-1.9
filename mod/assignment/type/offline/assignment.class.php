@@ -1,4 +1,4 @@
-<?php // $Id$
+<?php // $Id: assignment.class.php,v 1.12.2.2 2008/02/20 17:49:59 skodak Exp $
 
 /**
  * Extend the base assignment class for offline assignments
@@ -77,6 +77,9 @@ class assignment_offline extends assignment_base {
                 $submission->mailed = 0;       // Make sure mail goes out (again, even)
             }
             $submission->timemarked = time();
+
+            if($this->rubric->id)
+                $this->rubric->process_submission($feedback, $submission->id);
 
             unset($submission->data1);  // Don't need to update this.
             unset($submission->data2);  // Don't need to update this.

@@ -1,4 +1,4 @@
-<?php // $Id$
+<?php // $Id: assignment.class.php,v 1.46.2.6 2008/04/15 03:40:09 moodler Exp $
 require_once($CFG->libdir.'/formslib.php');
 
 /**
@@ -88,6 +88,8 @@ class assignment_online extends assignment_base {
         }
 
         $this->view_intro();
+
+        $this->rubric->view();
 
         $this->view_dates();
 

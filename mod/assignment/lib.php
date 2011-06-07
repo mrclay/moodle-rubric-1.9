@@ -5,6 +5,9 @@
  * This class provides all the functionality for an assignment
  */
 
+
+require_once ('rubric/lib.php');
+
 DEFINE ('ASSIGNMENT_COUNT_WORDS', 1);
 DEFINE ('ASSIGNMENT_COUNT_LETTERS', 2);
 
@@ -25,6 +28,7 @@ class assignment_base {
     var $defaultformat;
     var $context;
     var $type;
+    var $rubric;
 
     /**
      * Constructor for the base assignment class
@@ -83,6 +87,9 @@ class assignment_base {
         // visibility handled by require_login() with $cm parameter
         // get current group only when really needed
 
+        $this->rubric = new rubric($this->assignment->rubricid, 
+                                   $this->assignment->id);
+
     /// Set up things for a HTML editor if it's needed
         if ($this->usehtmleditor = can_use_html_editor()) {
             $this->defaultformat = FORMAT_HTML;
@@ -107,6 +114,8 @@ class assignment_base {
         $this->view_header();
 
         $this->view_intro();
+
+        $this->rubric->view();
 
         $this->view_dates();
 
@@ -345,6 +354,11 @@ class assignment_base {
         $assignment->timemodified = time();
         $assignment->courseid = $assignment->course;
 
+        if($assignment->rubricid){
+            $this->rubric = new rubric($assignment->rubricid);
+            $assignment->grade = $this->rubric->points;
+        }
+
         if ($returnid = insert_record("assignment", $assignment)) {
             $assignment->id = $returnid;
 
@@ -386,6 +400,12 @@ class assignment_base {
         $assignment->courseid = $assignment->course;
 
         $result = true;
+        
+        $result = delete_records_select('assignment_submission_specs', 
+                    "submissionid IN (
+                        SELECT id 
+                          FROM {$CFG->prefix}assignment_submissions 
+                         WHERE assignment = {$assignment->id})");
 
         if (! delete_records('assignment_submissions', 'assignment', $assignment->id)) {
             $result = false;
@@ -427,6 +447,15 @@ class assignment_base {
 
         $assignment->id = $assignment->instance;
         $assignment->courseid = $assignment->course;
+
+        // Here we're changing the grade when we have a rubric because 
+        // in the page, we've disabled the grade object (it won't 
+        // submit) and we can specify it here.
+
+        if($assignment->rubricid){
+            $this->rubric = new rubric($assignment->rubricid);
+            $assignment->grade = $this->rubric->points;
+        }
 
         if (!update_record('assignment', $assignment)) {
             return false;
@@ -669,14 +698,13 @@ class assignment_base {
         }
 
         if (empty($SESSION->flextable['mod-assignment-submissions']->collapse['grade'])) {
-            //echo optional_param('menuindex');
-            if ($quickgrade){
+            if ($quickgrade && empty($this->rubric->id)){
                 $output.= 'opener.document.getElementById("menumenu'.$submission->userid.
                 '").selectedIndex="'.optional_param('menuindex', 0, PARAM_INT).'";'."\n";
             } else {
                 $output.= 'opener.document.getElementById("g'.$submission->userid.'").innerHTML="'.
                 $this->display_grade($submission->grade)."\";\n";
-            }
+            }            
         }
         //need to add student's assignments in there too.
         if (empty($SESSION->flextable['mod-assignment-submissions']->collapse['timemodified']) &&
@@ -692,10 +720,15 @@ class assignment_base {
         }
 
         if (empty($SESSION->flextable['mod-assignment-submissions']->collapse['status'])) {
+
+            // Make the window wider if the assignment has a rubric
+            if($this->rubric->id) $width = 1150;
+            else $width = 725;
+
             $output.= 'opener.document.getElementById("up'.$submission->userid.'").className="s1";';
             $buttontext = get_string('update');
             $button = link_to_popup_window ('/mod/assignment/submissions.php?id='.$this->cm->id.'&amp;userid='.$submission->userid.'&amp;mode=single'.'&amp;offset='.(optional_param('offset', '', PARAM_INT)-1),
-                      'grade'.$submission->userid, $buttontext, 450, 700, $buttontext, 'none', true, 'button'.$submission->userid);
+                      'grade'.$submission->userid, $buttontext, 450, $width, $buttontext, 'none', true, 'button'.$submission->userid);
             $output.= 'opener.document.getElementById("up'.$submission->userid.'").innerHTML="'.addslashes_js($button).'";';
         }
 
@@ -865,6 +898,8 @@ class assignment_base {
         echo '}'."\n";
 
         echo '</script>'."\n";
+
+        echo '<form id="submitform" action="submissions.php" method="post">';
         echo '<table cellspacing="0" class="feedback '.$subtype.'" >';
 
         ///Start of teacher info row
@@ -880,7 +915,6 @@ class assignment_base {
         print_user_picture($teacher, $this->course->id, $teacher->picture);
         echo '</td>';
         echo '<td class="content">';
-        echo '<form id="submitform" action="submissions.php" method="post">';
         echo '<div>'; // xhtml compatibility - invisiblefieldset was breaking layout here
         echo '<input type="hidden" name="offset" value="'.($offset+1).'" />';
         echo '<input type="hidden" name="userid" value="'.$userid.'" />';
@@ -897,13 +931,21 @@ class assignment_base {
             echo '<div class="time">'.userdate($submission->timemarked).'</div>';
             echo '</div>';
         }
-        echo '<div class="grade"><label for="menugrade">'.get_string('grade').'</label> ';
-        choose_from_menu(make_grades_menu($this->assignment->grade), 'grade', $submission->grade, get_string('nograde'), '', -1, false, $disabled);
-        echo '</div>';
 
-        echo '<div class="clearer"></div>';
-        echo '<div class="finalgrade">'.get_string('finalgrade', 'grades').': '.$grading_info->items[0]->grades[$userid]->str_grade.'</div>';
-        echo '<div class="clearer"></div>';
+        // If this assignment as a rubric, then use that to grade
+        if(!$this->rubric->id){
+            echo '<div class="grade"><label for="menugrade">'.get_string('grade').'</label> ';
+            choose_from_menu(make_grades_menu($this->assignment->grade), 'grade', $submission->grade, get_string('nograde'), '', -1, false, $disabled);
+            echo '</div>';
+
+            echo '<div class="clearer"></div>';
+            echo '<div class="finalgrade">'.get_string('finalgrade', 'grades').': '.$grading_info->items[0]->grades[$userid]->str_grade.'</div>';
+            echo '<div class="clearer"></div>';
+        } else {
+
+            echo '<div class="clearer"></div>';
+            echo '<div class="clearer"></div>';
+        }
 
         if (!empty($CFG->enableoutcomes)) {
             foreach($grading_info->outcomes as $n=>$outcome) {
@@ -920,14 +962,13 @@ class assignment_base {
             }
         }
 
-
         $this->preprocess_submission($submission);
 
         if ($disabled) {
             echo '<div class="disabledfeedback">'.$grading_info->items[0]->grades[$userid]->str_feedback.'</div>';
 
         } else {
-            print_textarea($this->usehtmleditor, 14, 58, 0, 0, 'submissioncomment', $submission->submissioncomment, $this->course->id);
+            print_textarea($this->usehtmleditor, 14, 48, 0, 0, 'submissioncomment', $submission->submissioncomment, $this->course->id);
             if ($this->usehtmleditor) {
                 echo '<input type="hidden" name="format" value="'.FORMAT_HTML.'" />';
             } else {
@@ -938,26 +979,27 @@ class assignment_base {
             }
         }
 
-        $lastmailinfo = get_user_preferences('assignment_mailinfo', 1) ? 'checked="checked"' : '';
+        if($this->rubric->id){
+            echo '<td class="content" rowspan="3" width="100%">';
+            $this->rubric->grade($assignment, $submission, $userid);
+        }
 
         ///Print Buttons in Single View
-        echo '<input type="hidden" name="mailinfo" value="0" />';
-        echo '<input type="checkbox" id="mailinfo" name="mailinfo" value="1" '.$lastmailinfo.' /><label for="mailinfo">'.get_string('enableemailnotification','assignment').'</label>';
         echo '<div class="buttons">';
         echo '<input type="submit" name="submit" value="'.get_string('savechanges').'" onclick = "document.getElementById(\'submitform\').menuindex.value = document.getElementById(\'submitform\').grade.selectedIndex" />';
         echo '<input type="submit" name="cancel" value="'.get_string('cancel').'" />';
+        echo '<input type="hidden" name="mailinfo" value="0" />';
+        $lastmailinfo = get_user_preferences('assignment_mailinfo', 1) ? 'checked="checked"' : '';
+        echo '<input type="checkbox" id="mailinfo" name="mailinfo" value="1" '.$lastmailinfo.' /><label for="mailinfo">'.get_string('enableemailnotification','assignment').'</label>';
         //if there are more to be graded.
         if ($nextid) {
             echo '<input type="submit" name="saveandnext" value="'.get_string('saveandnext').'" onclick="saveNext()" />';
             echo '<input type="submit" name="next" value="'.get_string('next').'" onclick="setNext();" />';
         }
         echo '</div>';
-        echo '</div></form>';
+        echo '</div>';
 
-        $customfeedback = $this->custom_feedbackform($submission, true);
-        if (!empty($customfeedback)) {
-            echo $customfeedback;
-        }
+        echo '</td>';
 
         echo '</td></tr>';
 
@@ -980,7 +1022,17 @@ class assignment_base {
 
         ///End of student info row
 
-        echo '</table>';
+        echo '</table></form>';
+        
+        echo '<table cellspacing="0" style="width:694px" class="feedback '.$subtype.'" >';
+        echo '<tr><td class="content" rowspan="2" width="100%" style="text-align:right">';
+
+        $customfeedback = $this->custom_feedbackform($submission, true);
+        if (!empty($customfeedback)) {
+            echo $customfeedback;
+        }
+
+        echo '</td></tr></table>';
 
         if (!$disabled and $this->usehtmleditor) {
             use_html_editor();
@@ -1203,7 +1255,7 @@ class assignment_base {
 
                         if ($final_grade->locked or $final_grade->overridden) {
                             $grade = '<div id="g'.$auser->id.'" class="'. $locked_overridden .'">'.$final_grade->formatted_grade.'</div>';
-                        } else if ($quickgrade) {
+                        } else if ($quickgrade && !$this->rubric->id) {
                             $menu = choose_from_menu(make_grades_menu($this->assignment->grade),
                                                      'menu['.$auser->id.']', $auser->grade,
                                                      get_string('nograde'),'',-1,true,false,$tabindex++);
@@ -1216,7 +1268,7 @@ class assignment_base {
                         $teachermodified = '<div id="tt'.$auser->id.'">&nbsp;</div>';
                         if ($final_grade->locked or $final_grade->overridden) {
                             $grade = '<div id="g'.$auser->id.'" class="'. $locked_overridden .'">'.$final_grade->formatted_grade.'</div>';
-                        } else if ($quickgrade) {
+                        } else if ($quickgrade && !$this->rubric->id) {
                             $menu = choose_from_menu(make_grades_menu($this->assignment->grade),
                                                      'menu['.$auser->id.']', $auser->grade,
                                                      get_string('nograde'),'',-1,true,false,$tabindex++);
@@ -1243,7 +1295,7 @@ class assignment_base {
 
                     if ($final_grade->locked or $final_grade->overridden) {
                         $grade = '<div id="g'.$auser->id.'">'.$final_grade->formatted_grade . '</div>';
-                    } else if ($quickgrade) {   // allow editing
+                    } else if ($quickgrade && !$this->rubric->id) {   // allow editing
                         $menu = choose_from_menu(make_grades_menu($this->assignment->grade),
                                                  'menu['.$auser->id.']', $auser->grade,
                                                  get_string('nograde'),'',-1,true,false,$tabindex++);
@@ -1271,10 +1323,14 @@ class assignment_base {
 
                 $buttontext = ($auser->status == 1) ? $strupdate : $strgrade;
 
+                // Make the window wider if the assignment has a rubric
+                if($this->rubric->id) $width = 1150;
+                else $width = 725;
+
                 ///No more buttons, we use popups ;-).
                 $popup_url = '/mod/assignment/submissions.php?id='.$this->cm->id
                            . '&amp;userid='.$auser->id.'&amp;mode=single'.'&amp;offset='.$offset++;
-                $button = link_to_popup_window ($popup_url, 'grade'.$auser->id, $buttontext, 600, 780,
+                $button = link_to_popup_window ($popup_url, 'grade'.$auser->id, $buttontext, 450, $width,
                                                 $buttontext, 'none', true, 'button'.$auser->id);
 
                 $status  = '<div id="up'.$auser->id.'" class="s'.$auser->status.'">'.$button.'</div>';
@@ -1301,7 +1357,7 @@ class assignment_base {
                     }
                 }
 
-				$userlink = '<a href="' . $CFG->wwwroot . '/user/view.php?id=' . $auser->id . '&amp;course=' . $course->id . '">' . fullname($auser) . '</a>';
+                $userlink = '<a href="' . $CFG->wwwroot . '/user/view.php?id=' . $auser->id . '&amp;course=' . $course->id . '">' . fullname($auser) . '</a>';
                 $row = array($picture, $userlink, $grade, $comment, $studentmodified, $teachermodified, $status, $finalgrade);
                 if ($uses_outcomes) {
                     $row[] = $outcomes;
@@ -1351,17 +1407,26 @@ class assignment_base {
         helpbutton('pagesize', get_string('pagesize','assignment'), 'assignment');
         echo '</td></tr>';
         echo '<tr><td>';
+        //$class_disabled = $this->rubric->id ? 'class="dimmed_text"' : '';
+        //echo '<label for="quickgrade" '.$class_disabled.'>'.get_string('quickgrade','assignment').'</label>';
         echo '<label for="quickgrade">'.get_string('quickgrade','assignment').'</label>';
         echo '</td>';
+
+        // Disabled QuickGrading button if not applicable
         echo '<td>';
         $checked = $quickgrade ? 'checked="checked"' : '';
+        //$qg_disabled = $this->rubric->id ? 'disabled="disabled"' : '';
+        //echo '<input type="checkbox" id="quickgrade" name="quickgrade" value="1" '.$checked.' '.$qg_disabled.' />';
         echo '<input type="checkbox" id="quickgrade" name="quickgrade" value="1" '.$checked.' />';
         helpbutton('quickgrade', get_string('quickgrade', 'assignment'), 'assignment').'</p></div>';
-        echo '</td></tr>';
+        echo '</td>';
+
+        echo '</tr>';
         echo '<tr><td colspan="2">';
         echo '<input type="submit" value="'.get_string('savepreferences').'" />';
         echo '</td></tr></table>';
         echo '</div></form></div>';
+
         ///End of mini form
         print_footer($this->course);
     }
@@ -1413,6 +1478,9 @@ class assignment_base {
                 $submission->mailed = 0;       // Make sure mail goes out (again, even)
             }
             $submission->timemarked = time();
+
+            if($this->rubric->id)
+                $this->rubric->process_submission($feedback, $submission->id);
 
             unset($submission->data1);  // Don't need to update this.
             unset($submission->data2);  // Don't need to update this.
