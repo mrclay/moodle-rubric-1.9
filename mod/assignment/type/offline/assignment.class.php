@@ -1,4 +1,4 @@
-<?php // $Id: assignment.class.php,v 1.12.2.2 2008/02/20 17:49:59 skodak Exp $
+<?php // $Id$
 
 /**
  * Extend the base assignment class for offline assignments
@@ -41,7 +41,7 @@ class assignment_offline extends assignment_base {
         global $CFG, $USER;
         require_once($CFG->libdir.'/gradelib.php');
 
-        if (!$feedback = data_submitted()) {      // No incoming data?
+        if (!$feedback = data_submitted() or !confirm_sesskey()) {      // No incoming data?
             return false;
         }
 

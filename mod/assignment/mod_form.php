@@ -36,7 +36,11 @@ class mod_assignment_mod_form extends moodleform_mod {
 //        $mform->addElement('static', 'statictype', get_string('assignmenttype', 'assignment'), get_string('type'.$type,'assignment'));
 
         $mform->addElement('text', 'name', get_string('assignmentname', 'assignment'), array('size'=>'64'));
-        $mform->setType('name', PARAM_TEXT);
+        if (!empty($CFG->formatstringstriptags)) {
+            $mform->setType('name', PARAM_TEXT);
+        } else {
+            $mform->setType('name', PARAM_CLEAN);
+        }
         $mform->addRule('name', null, 'required', null, 'client');
 
         $mform->addElement('htmleditor', 'description', get_string('description', 'assignment'));
@@ -144,7 +148,17 @@ class mod_assignment_mod_form extends moodleform_mod {
         $mform->addElement('select', 'preventlate', get_string('preventlate', 'assignment'), $ynoptions);
         $mform->setDefault('preventlate', 0);
 
-        $mform->addElement('header', 'typedesc', get_string('type'.$type,'assignment'));
+
+
+        $typetitle = get_string('type'.$type, 'assignment');
+
+        // hack to support pluggable assignment type titles
+        if ($typetitle === '[[type'.$type.']]') {
+            $typetitle  = get_string('type'.$type, 'assignment_'.$type);
+        } 
+
+        $mform->addElement('header', 'typedesc', $typetitle);
+
         $assignmentinstance->setup_elements($mform);
 
         $features = new stdClass;

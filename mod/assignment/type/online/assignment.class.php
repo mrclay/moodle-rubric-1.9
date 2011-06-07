@@ -1,4 +1,4 @@
-<?php // $Id: assignment.class.php,v 1.46.2.6 2008/04/15 03:40:09 moodler Exp $
+<?php // $Id$
 require_once($CFG->libdir.'/formslib.php');
 
 /**
@@ -55,7 +55,7 @@ class assignment_online extends assignment_base {
                 $defaults->text   = format_text($submission->data1, $submission->data2, $options);
                 $defaults->format = FORMAT_HTML;
             } else {
-                $defaults->text   = $submission->data1;
+                $defaults->text   = clean_text($submission->data1, $submission->data2);
                 $defaults->format = $submission->data2;
             }
         }
@@ -84,7 +84,7 @@ class assignment_online extends assignment_base {
         if ($editmode) {
             $this->view_header(get_string('editmysubmission', 'assignment'));
         } else {
-            $this->view_header();
+            $this->view_header(get_string('viewsubmissions', 'assignment'));
         }
 
         $this->view_intro();
@@ -97,27 +97,30 @@ class assignment_online extends assignment_base {
             notify(get_string('submissionsaved', 'assignment'), 'notifysuccess');
         }
 
-        if (has_capability('mod/assignment:submit', $context)) {
-            print_simple_box_start('center', '70%', '', 0, 'generalbox', 'online');
-            if ($editmode) {
-                $mform->display();
-            } else {
-                if ($submission) {
-                    echo format_text($submission->data1, $submission->data2);
-                } else if (!has_capability('mod/assignment:submit', $context)) { //fix for #4604
+        if ($editmode) {
+            print_box_start('generalbox', 'online');
+            $mform->display();
+            print_box_end();
+        } else {
+            print_box_start('generalbox boxwidthwide boxaligncenter', 'online');
+            if ($submission) {
+                echo format_text($submission->data1, $submission->data2);
+            } else if (!has_capability('mod/assignment:submit', $context)) { //fix for #4604
+                if (isguest()) {
                     echo '<div style="text-align:center">'. get_string('guestnosubmit', 'assignment').'</div>';
-                } else if ($this->isopen()){    //fix for #4206
-                    echo '<div style="text-align:center">'.get_string('emptysubmission', 'assignment').'</div>';
+                } else {
+                    echo '<div style="text-align:center">'. get_string('usernosubmit', 'assignment').'</div>';
                 }
+            } else if ($this->isopen()){    //fix for #4206
+                echo '<div style="text-align:center">'.get_string('emptysubmission', 'assignment').'</div>';
             }
-            print_simple_box_end();
-            if (!$editmode && $editable) {
+            print_box_end();
+            if ($editable) {
                 echo "<div style='text-align:center'>";
                 print_single_button('view.php', array('id'=>$this->cm->id,'edit'=>'1'),
                         get_string('editmysubmission', 'assignment'));
                 echo "</div>";
             }
-
         }
 
         $this->view_feedback();
@@ -269,7 +272,7 @@ class mod_assignment_online_edit_form extends moodleform {
         $mform =& $this->_form;
 
         // visible elements
-        $mform->addElement('htmleditor', 'text', get_string('submission', 'assignment'), array('cols'=>85, 'rows'=>30));
+        $mform->addElement('htmleditor', 'text', get_string('submission', 'assignment'), array('cols'=>60, 'rows'=>30));
         $mform->setType('text', PARAM_RAW); // to be cleaned before display
         $mform->setHelpButton('text', array('reading', 'writing', 'richtext'), false, 'editorhelpbutton');
         $mform->addRule('text', get_string('required'), 'required', null, 'client');

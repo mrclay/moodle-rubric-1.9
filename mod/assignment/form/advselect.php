@@ -20,7 +20,9 @@ class MoodleQuickForm_advselect extends MoodleQuickForm_select {
     var $_script = '';
     var $_rubrics = array();
 
-    /*function MoodleQuickForm_advselect($elementName=null, $elementLabel=null, $options=null, $attributes=null)
+    // coepatch sclay 2010-08-11
+    // this needed to be preset (not commented out) to avoid fatal error in PHP5.3.2
+    function MoodleQuickForm_advselect($elementName=null, $elementLabel=null, $options=null, $attributes=null)
     {
         MoodleQuickForm_select::MoodleQuickForm_select($elementName, $elementLabel, $options, $attributes);
     } //end constructor */

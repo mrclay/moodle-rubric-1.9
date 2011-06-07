@@ -1,4 +1,4 @@
-<?php // $Id: assignment.class.php,v 1.33.2.5 2008/04/08 03:02:49 scyrma Exp $
+<?php // $Id$
 
 /**
  * Extend the base assignment class for assignments where you upload a single file
@@ -88,6 +88,7 @@ class assignment_uploadsingle extends assignment_base {
         echo '<fieldset class="invisiblefieldset">';
         echo "<p>$struploadafile ($strmaxsize)</p>";
         echo '<input type="hidden" name="id" value="'.$this->cm->id.'" />';
+        echo '<input type="hidden" name="sesskey" value="'.sesskey().'" />';
         require_once($CFG->libdir.'/uploadlib.php');
         upload_print_form_fragment(1,array('newfile'),false,null,0,$this->assignment->maxbytes,false);
         echo '<input type="submit" name="save" value="'.get_string('uploadthisfile').'" />';
@@ -119,7 +120,7 @@ class assignment_uploadsingle extends assignment_base {
 
             require_once($CFG->dirroot.'/lib/uploadlib.php');
             $um = new upload_manager('newfile',true,false,$this->course,false,$this->assignment->maxbytes);
-            if ($um->process_file_uploads($dir)) {
+            if ($um->process_file_uploads($dir) and confirm_sesskey()) {
                 $newfile_name = $um->get_new_filename();
                 if ($submission) {
                     $submission->timemodified = time();

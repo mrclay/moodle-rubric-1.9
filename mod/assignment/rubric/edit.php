@@ -1,4 +1,4 @@
-<?php // $Id: modedit.php,v 1.15.2.1 2007/02/14 14:15:30 moodler Exp $
+<?php // $Id$
 
 //  adds or updates rubric in a course
 

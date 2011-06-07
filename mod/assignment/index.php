@@ -1,4 +1,4 @@
-<?php // $Id: index.php,v 1.35.2.5 2008/03/11 14:24:12 thepurpleblob Exp $
+<?php // $Id$
 
     require_once("../../config.php");
     require_once("lib.php");
@@ -100,6 +100,7 @@
 
         $cm->timedue        = $cms[$cm->id]->timedue;
         $cm->assignmenttype = $cms[$cm->id]->assignmenttype;
+        $cm->idnumber       = get_field('course_modules', 'idnumber', 'id', $cm->id); //hack
 
         //Show dimmed if the mod is hidden
         $class = $cm->visible ? '' : 'class="dimmed"';
@@ -128,7 +129,7 @@
         $submitted = $assignmentinstance->submittedlink(true);
 
         $grading_info = grade_get_grades($course->id, 'mod', 'assignment', $cm->instance, $USER->id);
-        if (isset($grading_info->items[0])) {
+        if (isset($grading_info->items[0]) && !$grading_info->items[0]->grades[$USER->id]->hidden ) {
             $grade = $grading_info->items[0]->grades[$USER->id]->str_grade;
         }
         else {

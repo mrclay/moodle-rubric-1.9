@@ -1,4 +1,4 @@
-<?php  //$Id: upgrade.php,v 1.7.2.5 2008/05/01 20:37:22 skodak Exp $
+<?php  //$Id$
 
 // This file keeps track of upgrades to
 // the assignment module
@@ -44,7 +44,7 @@ function xmldb_assignment_upgrade($oldversion=0) {
     if ($result && $oldversion < 2007091902) {
         // add draft tracking default to existing upload assignments
         $sql = "UPDATE {$CFG->prefix}assignment SET var4=1 WHERE assignmenttype='upload'";
-        $result = $result && execute_sql($sql);
+        $result = execute_sql($sql);
     }
 
 //===== 1.9.0 upgrade line ======//
