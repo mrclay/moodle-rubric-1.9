@@ -872,7 +872,9 @@ class assignment_base {
             $select = 'SELECT u.id, u.firstname, u.lastname, u.picture, u.imagealt,
                               s.id AS submissionid, s.grade, s.submissioncomment,
                               s.timemodified, s.timemarked,
-                              COALESCE(SIGN(SIGN(s.timemarked) + SIGN(s.timemarked - s.timemodified)), 0) AS status ';
+                              CASE WHEN s.timemarked > 0 AND s.timemarked >= s.timemodified THEN 1
+                                   ELSE 0 END AS status ';
+
             $sql = 'FROM '.$CFG->prefix.'user u '.
                    'LEFT JOIN '.$CFG->prefix.'assignment_submissions s ON u.id = s.userid
                                                                       AND s.assignment = '.$this->assignment->id.' '.
@@ -884,8 +886,6 @@ class assignment_base {
 
             if (($auser = get_records_sql($select.$sql.$sort, $offset+1, 1)) !== false) {
                 $nextuser = array_shift($auser);
-            /// Calculate user status
-                $nextuser->status = ($nextuser->timemarked > 0) && ($nextuser->timemarked >= $nextuser->timemodified);
                 $nextid = $nextuser->id;
             }
         }
@@ -1220,7 +1220,9 @@ class assignment_base {
         $select = 'SELECT u.id, u.firstname, u.lastname, u.picture, u.imagealt,
                           s.id AS submissionid, s.grade, s.submissioncomment,
                           s.timemodified, s.timemarked,
-                          COALESCE(SIGN(SIGN(s.timemarked) + SIGN(s.timemarked - s.timemodified)), 0) AS status ';
+                          CASE WHEN s.timemarked > 0 AND s.timemarked >= s.timemodified THEN 1
+                               ELSE 0 END AS status ';
+
         $sql = 'FROM '.$CFG->prefix.'user u '.
                'LEFT JOIN '.$CFG->prefix.'assignment_submissions s ON u.id = s.userid
                                                                   AND s.assignment = '.$this->assignment->id.' '.
@@ -1246,8 +1248,6 @@ class assignment_base {
                     $locked_overridden = 'overridden';
                 }
 
-            /// Calculate user status
-                $auser->status = ($auser->timemarked > 0) && ($auser->timemarked >= $auser->timemodified);
                 $picture = print_user_picture($auser, $course->id, $auser->picture, false, true);
 
                 if (empty($auser->submissionid)) {
